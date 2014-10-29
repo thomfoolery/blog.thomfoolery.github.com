@@ -34,8 +34,7 @@ ghost_head = function (options) {
         ops = [],
         structuredData,
         coverImage, authorImage, keywords,
-        schema,
-        title = hbs.handlebars.Utils.escapeExpression(blog.title);
+        schema;
 
     trimmedVersion = trimmedVersion ? trimmedVersion.match(majorMinor)[0] : '?';
     // Push Async calls to an array of promises
@@ -50,14 +49,13 @@ ghost_head = function (options) {
             metaTitle = results[2].value(),
             publishedDate, modifiedDate,
             tags = tagsHelper.call(self.post, {hash: {autolink: 'false'}}).string.split(','),
-            card = 'summary',
-            type, authorUrl;
+            card = 'content';
 
         if (!metaDescription) {
             metaDescription = excerpt.call(self.post, {hash: {words: '40'}}).string;
         }
         if (tags[0] !== '') {
-            keywords = hbs.handlebars.Utils.escapeExpression(tagsHelper.call(self.post, {hash: {autolink: 'false', seperator: ', '}}).string);
+            keywords = tagsHelper.call(self.post, {hash: {autolink: 'false', seperator: ', '}}).string;
         }
         head.push('<link rel="canonical" href="' + url + '" />');
 
@@ -83,30 +81,25 @@ ghost_head = function (options) {
             if (self.post.image) {
                 coverImage = self.post.image;
                 // Test to see if image was linked by url or uploaded
-                coverImage = coverImage.substring(0, 4) === 'http' ? coverImage : hbs.handlebars.Utils.escapeExpression(blog.url + coverImage);
+                coverImage = coverImage.substring(0, 4) === 'http' ? coverImage : _.escape(blog.url) + coverImage;
                 card = 'summary_large_image';
             }
 
             if (self.post.author.image) {
                 authorImage = self.post.author.image;
                 // Test to see if image was linked by url or uploaded
-                authorImage = authorImage.substring(0, 4) === 'http' ? authorImage : hbs.handlebars.Utils.escapeExpression(blog.url + authorImage);
+                authorImage = authorImage.substring(0, 4) === 'http' ? authorImage : _.escape(blog.url) + authorImage;
             }
-
-            // escaped data
-            metaTitle = hbs.handlebars.Utils.escapeExpression(metaTitle);
-            metaDescription = hbs.handlebars.Utils.escapeExpression(metaDescription + '...');
-            authorUrl = hbs.handlebars.Utils.escapeExpression(blog.url + '/author/' + self.post.author.slug);
 
             schema = {
                 '@context': 'http://schema.org',
                 '@type': 'Article',
-                publisher: title,
+                publisher: _.escape(blog.title),
                 author: {
                     '@type': 'Person',
                     name: self.post.author.name,
                     image: authorImage,
-                    url: authorUrl,
+                    url: _.escape(blog.url) + '/author/' + self.post.author.slug,
                     sameAs: self.post.author.website
                 },
                 headline: metaTitle,
@@ -119,10 +112,10 @@ ghost_head = function (options) {
             };
 
             structuredData = {
-                'og:site_name': title,
+                'og:site_name': _.escape(blog.title),
                 'og:type': 'article',
                 'og:title': metaTitle,
-                'og:description': metaDescription,
+                'og:description': metaDescription + '...',
                 'og:url': url,
                 'og:image': coverImage,
                 'article:published_time': publishedDate,
@@ -130,7 +123,7 @@ ghost_head = function (options) {
                 'article:tag': tags,
                 'twitter:card': card,
                 'twitter:title': metaTitle,
-                'twitter:description': metaDescription,
+                'twitter:description': metaDescription + '...',
                 'twitter:url': url,
                 'twitter:image:src': coverImage
             };
@@ -139,14 +132,16 @@ ghost_head = function (options) {
                 if (property === 'article:tag') {
                     _.each(tags, function (tag) {
                         if (tag !== '') {
-                            tag = hbs.handlebars.Utils.escapeExpression(tag.trim());
-                            head.push('<meta property="' + property + '" content="' + tag + '" />');
+                            head.push('<meta property="' + property + '" content="' + tag.trim() + '" />');
                         }
                     });
                     head.push('');
                 } else if (content !== null && content !== undefined) {
-                    type = property.substring(0, 7) === 'twitter' ?  'name' : 'property';
-                    head.push('<meta ' + type + '="' + property + '" content="' + content + '" />');
+                    if (property.substring(0, 7) === 'twitter') {
+                        head.push('<meta name="' + property + '" content="' + content + '" />');
+                    } else {
+                        head.push('<meta property="' + property + '" content="' + content + '" />');
+                    }
                 }
             });
             head.push('');
@@ -155,7 +150,7 @@ ghost_head = function (options) {
 
         head.push('<meta name="generator" content="Ghost ' + trimmedVersion + '" />');
         head.push('<link rel="alternate" type="application/rss+xml" title="' +
-            title  + '" href="' + config.urlFor('rss') + '" />');
+            _.escape(blog.title)  + '" href="' + config.urlFor('rss') + '" />');
         return filters.doFilter('ghost_head', head);
     }).then(function (head) {
         var headString = _.reduce(head, function (memo, item) { return memo + '\n    ' + item; }, '');
